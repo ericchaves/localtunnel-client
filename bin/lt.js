@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-const openurl = require('openurl');
-const yargs = require('yargs');
+import open from 'open';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const localtunnel = require('../localtunnel');
-const { version } = require('../package');
+import localtunnel from '../localtunnel.js';
 
-const { argv } = yargs
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+const { version } = packageJson;
+
+const { argv } = yargs(hideBin(process.argv))
   .usage('Usage: lt --port [num] <options>')
   .env(true)
   .option('p', {
@@ -54,7 +62,7 @@ const { argv } = yargs
   .boolean('allow-invalid-cert')
   .boolean('print-requests')
   .help('help', 'Show this help and exit')
-  .version(version);
+  .version(`localtunnel client (${version} with epc modifications)`);
 
 if (typeof argv.port !== 'number') {
   yargs.showHelp();
@@ -93,7 +101,7 @@ if (typeof argv.port !== 'number') {
   }
 
   if (argv.open) {
-    openurl.open(tunnel.url);
+    await open(tunnel.url);
   }
 
   if (argv['print-requests']) {

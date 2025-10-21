@@ -1,0 +1,38 @@
+# Git
+.git/
+.github/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# Claude Code
+.claude/
+
+# Documentation
+*.md
+README.md
+CHANGELOG.md
+
+# Config files
+.nvmrc
+.eslintrc.js
+.travis.yml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
