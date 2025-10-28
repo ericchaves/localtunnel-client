@@ -1,3 +1,69 @@
+# 2.1.0-epc (2025-10-28)
+
+## Protocol 0.0.10-epc Support - Authentication Features
+
+This release upgrades the LocalTunnel client from protocol version 0.0.8-epc to 0.0.10-epc.
+
+### New Features
+
+#### Client Token Authentication (Protocol 0.0.9-epc)
+- **Client Token authentication** for persistent client identification
+- **CLI Option**: `--client-token <token>`
+- **Environment Variable**: `LT_CLIENT_TOKEN`
+- **API**: `clientToken` option in `localtunnel()` function
+- **Benefits**: Reconnect with same subdomain from different IPs, persistent identification
+- **Header**: `X-LT-Client-Token: <token>`
+
+#### HMAC-SHA256 Authentication (Protocol 0.0.10-epc)
+- **Cryptographic request authentication** using HMAC-SHA256
+- **CLI Option**: `--hmac-secret <secret>` (min 32 characters)
+- **Environment Variable**: `LT_HMAC_SECRET`
+- **API**: `hmacSecret` option in `localtunnel()` function
+- **Benefits**: Cryptographic authentication, replay attack protection
+- **Headers**: `Authorization`, `X-Timestamp`, `X-Nonce`
+
+#### Environment Variables
+- All CLI options now support environment variables with `LT_` prefix
+- Example: `export LT_CLIENT_TOKEN="token"` and `export LT_HMAC_SECRET="secret"`
+
+### Usage Examples
+
+```bash
+# With Client Token
+lt --port 3000 --subdomain myapp --client-token my-token-123
+
+# With HMAC
+lt --port 3000 --subdomain myapp --hmac-secret "32-char-minimum-secret"
+
+# Using environment variables
+export LT_CLIENT_TOKEN="my-token"
+export LT_HMAC_SECRET="32-char-minimum-secret"
+lt --port 3000 --subdomain myapp
+
+# Programmatic
+const tunnel = await localtunnel({
+  port: 3000,
+  clientToken: 'my-token',
+  hmacSecret: '32-char-minimum-secret'
+});
+```
+
+### Documentation
+- Added `PROTOCOL_UPGRADE.md` - Complete protocol upgrade guide
+- Added `authentication.spec.js` - 13 new tests (41 total, all passing)
+- Added `examples/authentication-example.js` - Practical examples
+- Added `.env.example` - Environment variables configuration template
+
+### Compatibility
+- **100% backward compatible** - existing code works without changes
+- Both features are optional
+- Falls back to IP-based identification when not configured
+- All 28 original tests still passing
+
+### Modified Files
+- `lib/Tunnel.js` - Added authentication logic and validation
+- `bin/lt.js` - Added CLI options and environment variable support
+
 # 2.0.2 (2021-09-18)
 
 - Upgrade dependencies

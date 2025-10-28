@@ -25,4 +25,3 @@ COPY localtunnel.js ./
 
 # Definir entrypoint e comando padrão
 ENTRYPOINT ["node", "bin/lt.js"]
-CMD ["--help"]

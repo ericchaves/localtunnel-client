@@ -61,9 +61,9 @@ import { EventEmitter } from 'events';
  * Specification version information
  * Update these constants when the protocol changes
  */
-const SPEC_VERSION = '1.0.1';
-const PROTOCOL_VERSION = '0.0.8-epc';
-const SPEC_LAST_UPDATED = '2025-10-22';
+const SPEC_VERSION = '1.2.0';
+const PROTOCOL_VERSION = '0.0.10-epc';
+const SPEC_LAST_UPDATED = '2025-10-28';
 
 /**
  * Protocol specifications that clients must implement
@@ -78,6 +78,25 @@ const PROTOCOL_SPECS = {
 
   // Response format (JSON)
   RESPONSE_FIELDS: ['id', 'port', 'max_conn_count', 'url'],
+
+  // Client Token Authentication (NEW in 0.0.9-epc)
+  CLIENT_TOKEN_HEADER: 'X-LT-Client-Token',
+  CLIENT_TOKEN_OPTIONAL: true,
+  CLIENT_TOKEN_MAX_LENGTH: 256,
+  CLIENT_TOKEN_PATTERN: /^[a-zA-Z0-9_-]+$/,
+  CLIENT_TOKEN_PRIORITY_OVER_IP: true,
+
+  // HMAC Authentication (NEW in 0.0.10-epc)
+  HMAC_ALGORITHM: 'sha256',
+  HMAC_AUTH_HEADER: 'Authorization',
+  HMAC_AUTH_FORMAT: 'HMAC sha256=<hex_signature>',
+  HMAC_TIMESTAMP_HEADER: 'X-Timestamp',
+  HMAC_NONCE_HEADER: 'X-Nonce',
+  HMAC_MESSAGE_FORMAT: 'METHOD+PATH+TIMESTAMP+NONCE+BODY',
+  HMAC_OPTIONAL: true, // Server may require HMAC (LT_HMAC_SECRET)
+  HMAC_TIMESTAMP_TOLERANCE: 60, // seconds (default)
+  HMAC_NONCE_THRESHOLD: 3600, // seconds (default)
+  HMAC_NONCE_TYPE: 'numeric', // Unix epoch in milliseconds
 
   // Subdomain validation
   SUBDOMAIN_MIN_LENGTH: 4,
@@ -1396,6 +1415,324 @@ describe('LocalTunnel Client Specification', function() {
   });
 
   // ===========================================================================
+  // CLIENT TOKEN AUTHENTICATION TESTS
+  // @since 1.1.0 (Protocol 0.0.9-epc)
+  // ===========================================================================
+
+  describe('Client Token Authentication (X-LT-Client-Token)', function() {
+    it('should send client token header when configured', async function() {
+      const clientToken = 'my-test-token-123';
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('token-test');
+
+      // TODO: Verify client sends X-LT-Client-Token header
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'token-test',
+      //   clientToken: clientToken  // New option
+      // });
+      //
+      // // Mock server should receive the header
+      // const scope = nock('http://localhost:8080')
+      //   .matchHeader('X-LT-Client-Token', clientToken)
+      //   .get('/token-test')
+      //   .reply(200, { id: tunnelId, port: tcpPort, max_conn_count: 10, url: '...' });
+      //
+      // await client.open();
+      //
+      // assert(scope.isDone());
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should allow reconnection with same token from different IP', async function() {
+      const clientToken = 'reconnect-token-456';
+      const subdomain = 'token-reconnect';
+
+      // First connection
+      const { tunnelId: id1, tcpPort: port1 } = mockServer.mockTunnelCreation(subdomain);
+
+      // TODO: Test reconnection with token
+      // const client1 = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: subdomain,
+      //   clientToken: clientToken
+      // });
+      //
+      // await client1.open();
+      // await client1.close();
+      //
+      // // Simulate IP change but same token
+      // const { tunnelId: id2 } = mockServer.mockTunnelCreation(subdomain);
+      //
+      // const client2 = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: subdomain,
+      //   clientToken: clientToken  // Same token
+      // });
+      //
+      // const info = await client2.open();
+      // assert.equal(info.id, subdomain); // Should get same subdomain
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should work without token (backward compatibility)', async function() {
+      // Client without token should still work using IP-based identification
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('no-token');
+
+      // TODO: Verify backward compatibility
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'no-token'
+      //   // No clientToken specified
+      // });
+      //
+      // const info = await client.open();
+      // assert.equal(info.id, 'no-token');
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should validate token format locally before sending', async function() {
+      const invalidTokens = [
+        'token with spaces',
+        'token@invalid',
+        'token#special',
+        'a'.repeat(300), // Too long
+      ];
+
+      // TODO: Verify client validates token format
+      // for (const invalidToken of invalidTokens) {
+      //   const client = new YourClientClass({
+      //     port: 3000,
+      //     host: 'http://localhost:8080',
+      //     clientToken: invalidToken
+      //   });
+      //
+      //   try {
+      //     await client.open();
+      //     assert.fail(`Should reject invalid token: ${invalidToken}`);
+      //   } catch (err) {
+      //     assert.match(err.message, /invalid|token|format/i);
+      //   }
+      // }
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should allow valid token characters (alphanumeric, hyphens, underscores)', async function() {
+      const validToken = 'Valid-Token_123';
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('valid-token');
+
+      // TODO: Verify valid token is accepted
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'valid-token',
+      //   clientToken: validToken
+      // });
+      //
+      // const info = await client.open();
+      // assert.equal(info.id, 'valid-token');
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+  });
+
+  // ===========================================================================
+  // HMAC AUTHENTICATION TESTS
+  // @since 1.2.0 (Protocol 0.0.10-epc)
+  // ===========================================================================
+
+  describe('HMAC Authentication (Optional)', function() {
+    it('should support HMAC authentication when server requires it', async function() {
+      // When server has LT_HMAC_SECRET configured, all tunnel requests need HMAC auth
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('hmac-test');
+
+      // TODO: Verify client can send HMAC authentication headers
+      // const secret = 'my-shared-secret-at-least-32-chars-long';
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'hmac-test',
+      //   hmacSecret: secret  // New option
+      // });
+      //
+      // // Client should calculate and send:
+      // // - Authorization: HMAC sha256=<signature>
+      // // - X-Timestamp: <unix_seconds>
+      // // - X-Nonce: <unix_ms>
+      //
+      // const scope = nock('http://localhost:8080')
+      //   .matchHeader('Authorization', /^HMAC sha256=[a-f0-9]+$/)
+      //   .matchHeader('X-Timestamp', /^\d+$/)
+      //   .matchHeader('X-Nonce', /^\d+$/)
+      //   .get('/hmac-test')
+      //   .reply(200, { id: tunnelId, port: tcpPort, max_conn_count: 10, url: '...' });
+      //
+      // await client.open();
+      // assert(scope.isDone());
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should calculate HMAC signature correctly', async function() {
+      // Message format: METHOD + PATH + TIMESTAMP + NONCE + BODY
+      // const crypto = require('crypto');
+      // const secret = 'test-secret-32-characters-long!!';
+      // const method = 'GET';
+      // const path = '/test-subdomain';
+      // const timestamp = '1735401600'; // Unix seconds
+      // const nonce = '1735401600000'; // Unix milliseconds
+      // const body = ''; // Empty for GET
+      //
+      // const message = `${method}${path}${timestamp}${nonce}${body}`;
+      // const expectedSignature = crypto.createHmac('sha256', secret).update(message).digest('hex');
+      //
+      // // TODO: Verify your client calculates the same signature
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'test-subdomain',
+      //   hmacSecret: secret
+      // });
+      //
+      // // Mock the timestamp/nonce to known values for testing
+      // const signature = client._calculateHmacSignature(method, path, timestamp, nonce, body);
+      // assert.equal(signature, expectedSignature);
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should use numeric nonce (Unix epoch in milliseconds)', async function() {
+      // Nonce must be a numeric value (Date.now())
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('nonce-test');
+
+      // TODO: Verify client uses numeric nonce
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'nonce-test',
+      //   hmacSecret: 'secret-32-chars-long-secret-here!!'
+      // });
+      //
+      // const scope = nock('http://localhost:8080')
+      //   .matchHeader('X-Nonce', (value) => {
+      //     const nonce = parseInt(value, 10);
+      //     return !isNaN(nonce) && nonce > 0 && nonce.toString().length >= 13; // Millisecond precision
+      //   })
+      //   .get('/nonce-test')
+      //   .reply(200, { id: tunnelId, port: tcpPort, max_conn_count: 10, url: '...' });
+      //
+      // await client.open();
+      // assert(scope.isDone());
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should use current Unix timestamp in seconds', async function() {
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('timestamp-test');
+
+      // TODO: Verify client uses Unix timestamp in seconds
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'timestamp-test',
+      //   hmacSecret: 'secret-32-chars-long-secret-here!!'
+      // });
+      //
+      // const now = Math.floor(Date.now() / 1000);
+      // const scope = nock('http://localhost:8080')
+      //   .matchHeader('X-Timestamp', (value) => {
+      //     const timestamp = parseInt(value, 10);
+      //     const diff = Math.abs(timestamp - now);
+      //     return diff < 5; // Within 5 seconds
+      //   })
+      //   .get('/timestamp-test')
+      //   .reply(200, { id: tunnelId, port: tcpPort, max_conn_count: 10, url: '...' });
+      //
+      // await client.open();
+      // assert(scope.isDone());
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should not send HMAC headers when server does not require it', async function() {
+      // Backward compatibility: if no hmacSecret provided, don't send HMAC headers
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation('no-hmac');
+
+      // TODO: Verify client doesn't send HMAC headers when not configured
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'no-hmac'
+      //   // No hmacSecret provided
+      // });
+      //
+      // const scope = nock('http://localhost:8080')
+      //   .get('/no-hmac')
+      //   .reply(function(uri, requestBody) {
+      //     // Verify HMAC headers are NOT present
+      //     assert.equal(this.req.headers['authorization'], undefined);
+      //     assert.equal(this.req.headers['x-timestamp'], undefined);
+      //     assert.equal(this.req.headers['x-nonce'], undefined);
+      //     return [200, { id: tunnelId, port: tcpPort, max_conn_count: 10, url: '...' }];
+      //   });
+      //
+      // await client.open();
+      // assert(scope.isDone());
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should handle 401 Unauthorized when HMAC signature is invalid', async function() {
+      mockServer.mockTunnelCreationError('hmac-fail', 401, 'Invalid HMAC signature');
+
+      // TODO: Verify client handles HMAC authentication failure
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   subdomain: 'hmac-fail',
+      //   hmacSecret: 'wrong-secret-different-from-server'
+      // });
+      //
+      // try {
+      //   await client.open();
+      //   assert.fail('Should have thrown error');
+      // } catch (err) {
+      //   assert(err.message.includes('HMAC') || err.message.includes('Unauthorized'));
+      //   assert.equal(err.statusCode || err.status, 401);
+      // }
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+
+    it('should validate HMAC secret length (min 32 characters)', async function() {
+      const shortSecret = 'too-short'; // Less than 32 chars
+
+      // TODO: Verify client validates secret length before using
+      // const client = new YourClientClass({
+      //   port: 3000,
+      //   host: 'http://localhost:8080',
+      //   hmacSecret: shortSecret
+      // });
+      //
+      // try {
+      //   await client.open();
+      //   assert.fail('Should reject short HMAC secret');
+      // } catch (err) {
+      //   assert.match(err.message, /secret|length|32|characters/i);
+      // }
+
+      assert.fail('Replace with your client implementation'); // Remove this line when implementing
+    });
+  });
+
+  // ===========================================================================
   // CLIENT LIFECYCLE TESTS
   // @since 1.0.0
   // ===========================================================================
@@ -1658,9 +1995,28 @@ When updating your client to a new protocol version:
 3. Update your client to match new PROTOCOL_SPECS constants
 4. Run tests to ensure compatibility
 
-Current Version: 1.0.1
-Protocol Compatibility: 0.0.8-epc
-Last Updated: 2025-10-22
+Current Version: 1.2.0
+Protocol Compatibility: 0.0.10-epc
+Last Updated: 2025-10-28
+
+VERSION HISTORY:
+  1.2.0 (2025-10-28) - HMAC Authentication
+    - Added HMAC-SHA256 authentication with shared secret
+    - Required headers: Authorization (HMAC sha256=<signature>), X-Timestamp, X-Nonce
+    - Message format: METHOD + PATH + TIMESTAMP + NONCE + BODY
+    - Numeric nonce (Unix epoch milliseconds) for replay attack prevention
+    - Timestamp tolerance and nonce threshold for clock skew handling
+    - Fully optional - backward compatible with non-HMAC servers
+    - Added PROTOCOL_SPECS for HMAC configuration
+    - Added comprehensive test suite for HMAC authentication
+  1.1.0 (2025-10-28) - Client Token Authentication
+    - Added X-LT-Client-Token header support for token-based identification
+    - Allows reconnection with same token from different IPs
+    - Fully backward compatible - token is optional
+    - Added PROTOCOL_SPECS for token configuration
+    - Added test suite for token authentication
+  1.0.1 (2025-10-22) - Bug fixes and improvements
+    - Previous version details...
 
 EXAMPLE CLIENT INTERFACE:
 
@@ -1673,6 +2029,7 @@ class MyLocalTunnelClient extends EventEmitter {
     this.host = options.host || 'https://localtunnel.me';
     this.subdomain = options.subdomain;
     this.maxSockets = options.maxSockets || 10;
+    this.clientToken = options.clientToken; // NEW: Optional client token (v1.1.0)
     // ... your implementation
   }
 

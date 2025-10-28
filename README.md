@@ -50,6 +50,8 @@ Below are some common arguments. See `lt --help` for additional arguments
 
 - `--subdomain` request a named subdomain on the localtunnel server (default is random characters)
 - `--local-host` proxy to a hostname other than localhost
+- `--client-token` authenticate with a client token for persistent subdomain reservation (Protocol 0.0.9-epc)
+- `--hmac-secret` authenticate requests with HMAC-SHA256 (Protocol 0.0.10-epc, min 32 characters)
 
 You may also specify arguments via env variables. e.g.
 
@@ -57,23 +59,95 @@ You may also specify arguments via env variables. e.g.
 PORT=3000 lt
 ```
 
+### Authentication (Optional)
+
+LocalTunnel client now supports two optional authentication methods (Protocol 0.0.10-epc):
+
+#### Client Token Authentication
+Use a persistent token to identify your client and reserve your subdomain across different IP addresses.
+
+```bash
+lt --port 3000 --subdomain myapp --client-token my-secure-token-123
+```
+
+**Benefits:**
+- Reconnect with the same subdomain from different IP addresses
+- Persistent client identification across network changes
+- Priority over IP-based identification on supported servers
+
+**Requirements:**
+- Format: Alphanumeric characters, hyphens, and underscores only `[a-zA-Z0-9_-]+`
+- Maximum length: 256 characters
+
+#### HMAC-SHA256 Authentication
+Cryptographically authenticate your tunnel creation requests using a shared secret.
+
+```bash
+lt --port 3000 --subdomain myapp --hmac-secret "my-very-secure-shared-secret-32-chars"
+```
+
+**Benefits:**
+- Cryptographic authentication of requests
+- Protection against replay attacks using nonce
+- Server-side validation of request authenticity
+
+**Requirements:**
+- Minimum length: 32 characters (enforced for security)
+
+#### Combined Authentication
+Use both methods together for maximum security:
+
+```bash
+lt --port 3000 --subdomain myapp \
+   --client-token my-token-123 \
+   --hmac-secret "my-very-secure-shared-secret-32-chars"
+```
+
+#### Using Environment Variables (Recommended)
+Store your authentication credentials securely using environment variables:
+
+```bash
+export LT_CLIENT_TOKEN="my-secure-token-123"
+export LT_HMAC_SECRET="my-very-secure-shared-secret-32-chars"
+lt --port 3000 --subdomain myapp
+```
+
+**Using .env file:**
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env with your settings
+# Then run localtunnel (it will automatically load .env variables)
+lt
+
+# Or run the dotenv example script
+node examples/dotenv-usage.js
+```
+
+See [.env.example](.env.example) for a complete configuration template with all available options, and [examples/dotenv-usage.js](examples/dotenv-usage.js) for a working example.
+
+**Note:** Both authentication methods are optional and backward compatible. Clients without authentication will continue to work using IP-based identification.
+
 ### Environment Variables
 
-All CLI options can be set via environment variables. The variable name is the option name in uppercase with hyphens replaced by underscores:
+All CLI options can be set via environment variables with `LT_` prefix (e.g., `LT_PORT`, `LT_CLIENT_TOKEN`):
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `PORT` | Internal HTTP server port | - | `PORT=3000` |
-| `HOST` | Upstream server providing forwarding | `https://localtunnel.me` | `HOST=https://custom.server.com` |
-| `SUBDOMAIN` | Request a specific subdomain | random | `SUBDOMAIN=myapp` |
-| `LOCAL_HOST` | Tunnel traffic to this host instead of localhost | `localhost` | `LOCAL_HOST=192.168.1.100` |
-| `LOCAL_HTTPS` | Tunnel traffic to a local HTTPS server | `false` | `LOCAL_HTTPS=true` |
-| `LOCAL_CERT` | Path to certificate PEM file for local HTTPS | - | `LOCAL_CERT=/path/to/cert.pem` |
-| `LOCAL_KEY` | Path to certificate key file for local HTTPS | - | `LOCAL_KEY=/path/to/key.pem` |
-| `LOCAL_CA` | Path to certificate authority file | - | `LOCAL_CA=/path/to/ca.pem` |
-| `ALLOW_INVALID_CERT` | Disable certificate checks for local HTTPS | `false` | `ALLOW_INVALID_CERT=true` |
-| `OPEN` | Opens the tunnel URL in your browser | `false` | `OPEN=true` |
-| `PRINT_REQUESTS` | Print basic request info | `false` | `PRINT_REQUESTS=true` |
+| `LT_PORT` | Internal HTTP server port | - | `LT_PORT=3000` |
+| `LT_HOST` | Upstream server providing forwarding | `https://localtunnel.me` | `LT_HOST=https://custom.server.com` |
+| `LT_SUBDOMAIN` | Request a specific subdomain | random | `LT_SUBDOMAIN=myapp` |
+| `LT_LOCAL_HOST` | Tunnel traffic to this host instead of localhost | `localhost` | `LT_LOCAL_HOST=192.168.1.100` |
+| `LT_LOCAL_HTTPS` | Tunnel traffic to a local HTTPS server | `false` | `LT_LOCAL_HTTPS=true` |
+| `LT_LOCAL_CERT` | Path to certificate PEM file for local HTTPS | - | `LT_LOCAL_CERT=/path/to/cert.pem` |
+| `LT_LOCAL_KEY` | Path to certificate key file for local HTTPS | - | `LT_LOCAL_KEY=/path/to/key.pem` |
+| `LT_LOCAL_CA` | Path to certificate authority file | - | `LT_LOCAL_CA=/path/to/ca.pem` |
+| `LT_ALLOW_INVALID_CERT` | Disable certificate checks for local HTTPS | `false` | `LT_ALLOW_INVALID_CERT=true` |
+| `LT_CLIENT_TOKEN` | **Client token for authentication** (Protocol 0.0.9-epc) | - | `LT_CLIENT_TOKEN=my-token-123` |
+| `LT_HMAC_SECRET` | **HMAC secret for request authentication** (Protocol 0.0.10-epc, min 32 chars) | - | `LT_HMAC_SECRET=my-secret` |
+| `LT_OPEN` | Opens the tunnel URL in your browser | `false` | `LT_OPEN=true` |
+| `LT_PRINT_REQUESTS` | Print basic request info | `false` | `LT_PRINT_REQUESTS=true` |
 
 #### Debug Variables
 
@@ -97,7 +171,7 @@ NODE_TLS_REJECT_UNAUTHORIZED='0' lt --host https://my-server. --port 3000
 **Example with multiple variables:**
 
 ```bash
-PORT=3000 SUBDOMAIN=myapp DEBUG=localtunnel:* lt
+LT_PORT=3000 LT_SUBDOMAIN=myapp LT_CLIENT_TOKEN=my-token DEBUG=localtunnel:* lt
 ```
 
 ## API
@@ -135,8 +209,31 @@ const localtunnel = require("localtunnel");
 - `local_key` (string) Path to certificate key file for local HTTPS server.
 - `local_ca` (string) Path to certificate authority file for self-signed certificates.
 - `allow_invalid_cert` (boolean) Disable certificate checks for your local HTTPS server (ignore cert/key/ca options).
+- `clientToken` (string) **[NEW]** Client token for authentication and subdomain reservation (Protocol 0.0.9-epc). Format: alphanumeric, hyphens, and underscores only. Max 256 characters.
+- `hmacSecret` (string) **[NEW]** HMAC shared secret for request authentication (Protocol 0.0.10-epc). Minimum 32 characters required.
 
 Refer to [tls.createSecureContext](https://nodejs.org/api/tls.html#tls_tls_createsecurecontext_options) for details on the certificate options.
+
+#### Example with Authentication
+
+```js
+const localtunnel = require("localtunnel");
+
+(async () => {
+  const tunnel = await localtunnel({
+    port: 3000,
+    subdomain: 'myapp',
+    clientToken: 'my-secure-token-123',
+    hmacSecret: 'my-very-secure-shared-secret-32-chars'
+  });
+
+  console.log('Tunnel URL:', tunnel.url);
+
+  tunnel.on("close", () => {
+    console.log('Tunnel closed');
+  });
+})();
+```
 
 ### Tunnel
 
@@ -156,7 +253,26 @@ The `tunnel` instance has the following methods
 
 ## Changes from Original
 
-This fork includes code/library updates, [test refactoring](docs/TESTING.md), protocol compliance improvements, [request/response inspection](docs/DEBUG_INSPECTION.md) and enhanced error handling:
+This fork includes code/library updates, [test refactoring](docs/TESTING.md), protocol compliance improvements, [request/response inspection](docs/DEBUG_INSPECTION.md), enhanced error handling, and **authentication features** (Protocol 0.0.10-epc):
+
+### Authentication Features (NEW - Protocol 0.0.10-epc)
+
+Added two optional authentication methods for enhanced security and persistent client identification:
+
+#### Client Token Authentication (Protocol 0.0.9-epc)
+- Persistent client identification using tokens
+- Reconnect with same subdomain from different IP addresses
+- Token validation (alphanumeric, hyphens, underscores, max 256 chars)
+- Header: `X-LT-Client-Token`
+
+#### HMAC-SHA256 Authentication (Protocol 0.0.10-epc)
+- Cryptographic request authentication
+- HMAC-SHA256 signature calculation
+- Protection against replay attacks using timestamp and nonce
+- Headers: `Authorization`, `X-Timestamp`, `X-Nonce`
+- Minimum 32-character secret enforced
+
+Both features are **optional and backward compatible**. See the [Authentication](#authentication-optional) section for usage examples, or the [PROTOCOL_UPGRADE.md](PROTOCOL_UPGRADE.md) guide for complete details.
 
 ### Error Handling
 
@@ -185,10 +301,14 @@ This specification can be used by alternative client implementations to ensure c
 
 ## Documentation
 
+- **[PROTOCOL_UPGRADE.md](PROTOCOL_UPGRADE.md)** - Protocol 0.0.10-epc upgrade guide and authentication features
+- **[.env.example](.env.example)** - Environment variables configuration template
 - **[DEBUG_INSPECTION.md](docs/DEBUG_INSPECTION.md)** - Guide for HTTP request/response inspection
 - **[TESTING.md](docs/TESTING.md)** - Testing guide and protocol specifications
 - **[SCRIPTS.md](docs/SCRIPTS.md)** - Demo scripts documentation
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- **[examples/authentication-example.js](examples/authentication-example.js)** - Authentication usage examples
+- **[examples/dotenv-usage.js](examples/dotenv-usage.js)** - Using .env file for configuration
 
 ## Other clients
 

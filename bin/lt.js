@@ -17,7 +17,7 @@ const { version } = packageJson;
 
 const { argv } = yargs(hideBin(process.argv))
   .usage('Usage: lt --port [num] <options>')
-  .env(true)
+  .env('LT')
   .option('p', {
     alias: 'port',
     describe: 'Internal HTTP server port',
@@ -50,6 +50,14 @@ const { argv } = yargs(hideBin(process.argv))
   .option('allow-invalid-cert', {
     describe: 'Disable certificate checks for your local HTTPS server (ignore cert/key/ca options)',
   })
+  .option('client-token', {
+    describe: 'Client token for authentication and subdomain reservation (Protocol 0.0.9-epc)\n' +
+              'Environment variable: LT_CLIENT_TOKEN',
+  })
+  .option('hmac-secret', {
+    describe: 'HMAC secret for request authentication, min 32 characters (Protocol 0.0.10-epc)\n' +
+              'Environment variable: LT_HMAC_SECRET',
+  })
   .options('o', {
     alias: 'open',
     describe: 'Opens the tunnel URL in your browser',
@@ -81,6 +89,8 @@ if (typeof argv.port !== 'number') {
     local_key: argv.localKey,
     local_ca: argv.localCa,
     allow_invalid_cert: argv.allowInvalidCert,
+    clientToken: argv.clientToken,
+    hmacSecret: argv.hmacSecret,
   }).catch(err => {
     throw err;
   });
