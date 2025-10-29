@@ -61,7 +61,7 @@ import { EventEmitter } from 'events';
  * Specification version information
  * Update these constants when the protocol changes
  */
-const SPEC_VERSION = '1.2.0';
+const SPEC_VERSION = '1.2.1';
 const PROTOCOL_VERSION = '0.0.10-epc';
 const SPEC_LAST_UPDATED = '2025-10-28';
 
@@ -107,7 +107,25 @@ const PROTOCOL_SPECS = {
   DEFAULT_MAX_SOCKETS: 10,
   DEFAULT_GRACE_PERIOD: 30000, // ms
   DEFAULT_REQUEST_TIMEOUT: 5000, // ms
-  DEFAULT_WEBSOCKET_TIMEOUT: 10000, // ms
+  DEFAULT_WEBSOCKET_TIMEOUT: 10000, // ms,
+
+  // Socket limit enforcement (NEW in 0.0.10-epc)
+  // When client exceeds max_conn_count, server responds with HTTP 429
+  SOCKET_LIMIT_RESPONSE: {
+    STATUS_CODE: 429,
+    HEADERS: {
+      'X-LT-Max-Sockets': 'Maximum number of sockets allowed',
+      'X-LT-Current-Sockets': 'Current number of connected sockets',
+      'X-LT-Available-Sockets': 'Number of sockets available for reuse',
+      'X-LT-Waiting-Requests': 'Number of queued requests waiting for a socket'
+    },
+    CLIENT_SHOULD: [
+      'Respect max_conn_count from tunnel creation response',
+      'Reuse existing connections from the pool',
+      'Not open more connections than max_conn_count',
+      'Stop trying to open new connections when limit is reached'
+    ]
+  },
 
   // HTTP status codes
   STATUS_OK: 200,
@@ -115,6 +133,7 @@ const PROTOCOL_SPECS = {
   STATUS_FORBIDDEN: 403,
   STATUS_NOT_FOUND: 404,
   STATUS_CONFLICT: 409,
+  STATUS_TOO_MANY_CONNECTIONS: 429,
   STATUS_INTERNAL_SERVER_ERROR: 500,
   STATUS_SERVICE_UNAVAILABLE: 503,
 
@@ -2000,6 +2019,13 @@ Protocol Compatibility: 0.0.10-epc
 Last Updated: 2025-10-28
 
 VERSION HISTORY:
+  1.2.1 (2025-10-28) - Socket Limit Enforcement
+    - Documented HTTP 429 (Too Many Connections) response
+    - Added SOCKET_LIMIT_RESPONSE specification
+    - Server now returns detailed headers: X-LT-Max-Sockets, X-LT-Current-Sockets,
+      X-LT-Available-Sockets, X-LT-Waiting-Requests
+    - Clear guidance for clients on respecting max_conn_count
+    - Enhanced error messages to help client debugging
   1.2.0 (2025-10-28) - HMAC Authentication
     - Added HMAC-SHA256 authentication with shared secret
     - Required headers: Authorization (HMAC sha256=<signature>), X-Timestamp, X-Nonce

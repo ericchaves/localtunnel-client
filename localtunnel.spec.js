@@ -363,8 +363,8 @@ describe('LocalTunnel Client', function() {
         connections[0].destroy();
       }
 
-      // Wait for reconnection
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for reconnection (increased wait time due to exponential backoff - starts at 1s)
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       assert(connectionCount > initialCount);
 
