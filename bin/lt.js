@@ -7,6 +7,16 @@ import { hideBin } from 'yargs/helpers';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { config } from 'dotenv';
+import debugLib from 'debug';
+
+// Load .env file into process.env for yargs .env('LT') to read
+config();
+
+// Re-enable debug with the value from .env (fixes timing issue with ES module hoisting)
+if (process.env.DEBUG) {
+  debugLib.enable(process.env.DEBUG);
+}
 
 import localtunnel from '../localtunnel.js';
 

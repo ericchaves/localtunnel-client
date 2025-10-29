@@ -18,17 +18,18 @@
     "lt": "bin/lt.js"
   },
   "scripts": {
+    "dev": "node ./bin/lt.js",
     "test": "mocha --exit --reporter list --timeout 1000 -- *.spec.js"
   },
   "dependencies": {
     "axios": "0.30.2",
     "debug": "4.4.1",
+    "dotenv": "^17.2.3",
     "open": "10.2.0",
     "snowflake-id": "^1.1.0",
     "yargs": "18.0.0"
   },
   "devDependencies": {
-    "dotenv": "^17.2.3",
     "mocha": "11.7.4",
     "nock": "^14.0.10"
   },
