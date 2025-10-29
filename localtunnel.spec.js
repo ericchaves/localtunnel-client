@@ -741,7 +741,9 @@ describe('LocalTunnel Client', function() {
       } catch (err) {
         // Expected - server returned error after retries
         assert(err);
-        assert(err.message.includes('Server error after'));
+        assert(err.message.includes('Server error'));
+        assert(err.message.includes('after'));
+        assert(err.message.includes('retries'));
       }
     });
 

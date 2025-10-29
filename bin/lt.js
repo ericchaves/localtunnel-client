@@ -79,6 +79,8 @@ const { argv } = yargs(hideBin(process.argv))
 if (typeof argv.port !== 'number') {
   yargs.showHelp();
   console.error('\nInvalid argument: `port` must be a number');
+  console.error(`Received: ${typeof argv.port} = ${argv.port}`);
+  console.error('Example: lt --port 3000');
   process.exit(1);
 }
 
@@ -97,14 +99,41 @@ if (typeof argv.port !== 'number') {
     hmacSecret: argv.hmacSecret,
     dump_dir: argv.dumpDir,
   }).catch(err => {
-    throw err;
+    console.error('\n❌ Failed to establish tunnel:');
+    console.error(`   ${err.message}`);
+
+    if (err.message.includes('ECONNREFUSED')) {
+      console.error('\n💡 Troubleshooting:');
+      console.error('   - Check if the tunnel server is accessible');
+      console.error('   - Verify your internet connection');
+      console.error('   - Try a different --host if using custom server');
+    } else if (err.message.includes('Too many connections')) {
+      console.error('\n💡 The server has reached its connection limit');
+      console.error('   - Wait a moment and try again');
+      console.error('   - Or try a different server with --host');
+    } else if (err.message.includes('HTTP 403')) {
+      console.error('\n💡 Possible causes:');
+      console.error('   - Invalid subdomain format');
+      console.error('   - Subdomain restricted by server');
+      console.error('   - Authentication required');
+    } else if (err.message.includes('HTTP 409')) {
+      console.error('\n💡 This subdomain is already in use');
+      console.error('   - Try a different subdomain');
+      console.error('   - Or use client token authentication');
+    }
+    process.exit(1);
   });
 
   tunnel.on('error', err => {
-    throw err;
+    console.error('\n❌ Tunnel error:');
+    console.error(`   ${err.message}`);
+    console.error('\n💡 The tunnel connection was lost. Please restart.');
+    process.exit(1);
   });
 
-  console.log('your url is: %s', tunnel.url);
+  console.log('\n✓ Tunnel established successfully!');
+  console.log('  Public URL:  %s', tunnel.url);
+  console.log('  Tunnel ID:   %s', tunnel.clientId);
 
   /**
    * `cachedUrl` is set when using a proxy server that support resource caching.
@@ -112,8 +141,17 @@ if (typeof argv.port !== 'number') {
    * @see https://github.com/localtunnel/localtunnel/pull/319#discussion_r319846289
    */
   if (tunnel.cachedUrl) {
-    console.log('your cachedUrl is: %s', tunnel.cachedUrl);
+    console.log('  Cached URL:  %s', tunnel.cachedUrl);
   }
+
+  if (argv.clientToken) {
+    console.log('  Auth:        Client Token');
+  }
+  if (argv.hmacSecret) {
+    console.log('  Security:    HMAC-SHA256');
+  }
+
+  console.log('\n  Press Ctrl+C to close the tunnel\n');
 
   if (argv.open) {
     await open(tunnel.url);
