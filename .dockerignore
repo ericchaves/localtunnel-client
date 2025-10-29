@@ -2,7 +2,7 @@
 .git/
 .github/
 .gitignore
-
+.dump/
 # Dependencies
 node_modules/
 
