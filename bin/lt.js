@@ -65,6 +65,10 @@ const { argv } = yargs(hideBin(process.argv))
   .option('print-requests', {
     describe: 'Print basic request info',
   })
+  .option('dump-dir', {
+    describe: 'Directory to dump HTTP requests/responses as YAML files',
+    type: 'string',
+  })
   .require('port')
   .boolean('local-https')
   .boolean('allow-invalid-cert')
@@ -91,6 +95,7 @@ if (typeof argv.port !== 'number') {
     allow_invalid_cert: argv.allowInvalidCert,
     clientToken: argv.clientToken,
     hmacSecret: argv.hmacSecret,
+    dump_dir: argv.dumpDir,
   }).catch(err => {
     throw err;
   });

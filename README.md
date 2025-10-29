@@ -153,8 +153,7 @@ All CLI options can be set via environment variables with `LT_` prefix (e.g., `L
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `DEBUG` | Enable debug output (see [DEBUG_INSPECTION.md](docs/DEBUG_INSPECTION.md)) | - | `DEBUG=localtunnel:*` |
-| `INSPECT_BODY_PREVIEW_SIZE` | Maximum bytes to preview for text/XML bodies | `500` | `INSPECT_BODY_PREVIEW_SIZE=1000` |
+| `DEBUG` | Enable debug output | - | `DEBUG=localtunnel:*` |
 
 #### Self-Signed Certificates
 
@@ -253,7 +252,7 @@ The `tunnel` instance has the following methods
 
 ## Changes from Original
 
-This fork includes code/library updates, [test refactoring](docs/TESTING.md), protocol compliance improvements, [request/response inspection](docs/DEBUG_INSPECTION.md), enhanced error handling, and **authentication features** (Protocol 0.0.10-epc):
+This fork includes code/library updates, [test refactoring](docs/TESTING.md), protocol compliance improvements, enhanced error handling, and **authentication features** (Protocol 0.0.10-epc):
 
 ### Authentication Features (NEW - Protocol 0.0.10-epc)
 
@@ -303,9 +302,7 @@ This specification can be used by alternative client implementations to ensure c
 
 - **[PROTOCOL_UPGRADE.md](PROTOCOL_UPGRADE.md)** - Protocol 0.0.10-epc upgrade guide and authentication features
 - **[.env.example](.env.example)** - Environment variables configuration template
-- **[DEBUG_INSPECTION.md](docs/DEBUG_INSPECTION.md)** - Guide for HTTP request/response inspection
 - **[TESTING.md](docs/TESTING.md)** - Testing guide and protocol specifications
-- **[SCRIPTS.md](docs/SCRIPTS.md)** - Demo scripts documentation
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 - **[examples/authentication-example.js](examples/authentication-example.js)** - Authentication usage examples
 - **[examples/dotenv-usage.js](examples/dotenv-usage.js)** - Using .env file for configuration
