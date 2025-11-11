@@ -52,6 +52,8 @@ Below are some common arguments. See `lt --help` for additional arguments
 - `--local-host` proxy to a hostname other than localhost
 - `--client-token` authenticate with a client token for persistent subdomain reservation (Protocol 0.0.9-epc)
 - `--hmac-secret` authenticate requests with HMAC-SHA256 (Protocol 0.0.10-epc, min 32 characters)
+- `--local-reconnect` enable/disable local connection retry (default: true)
+- `--local-retry-max` maximum local connection retry attempts, 0 = infinite (default: 0)
 
 You may also specify arguments via env variables. e.g.
 
@@ -146,6 +148,8 @@ All CLI options can be set via environment variables with `LT_` prefix (e.g., `L
 | `LT_ALLOW_INVALID_CERT` | Disable certificate checks for local HTTPS | `false` | `LT_ALLOW_INVALID_CERT=true` |
 | `LT_CLIENT_TOKEN` | **Client token for authentication** (Protocol 0.0.9-epc) | - | `LT_CLIENT_TOKEN=my-token-123` |
 | `LT_HMAC_SECRET` | **HMAC secret for request authentication** (Protocol 0.0.10-epc, min 32 chars) | - | `LT_HMAC_SECRET=my-secret` |
+| `LT_LOCAL_RECONNECT` | Enable local connection retry | `true` | `LT_LOCAL_RECONNECT=false` |
+| `LT_LOCAL_RETRY_MAX` | Maximum local connection retry attempts (0 = infinite) | `0` | `LT_LOCAL_RETRY_MAX=5` |
 | `LT_OPEN` | Opens the tunnel URL in your browser | `false` | `LT_OPEN=true` |
 | `LT_PRINT_REQUESTS` | Print basic request info | `false` | `LT_PRINT_REQUESTS=true` |
 
@@ -210,6 +214,8 @@ const localtunnel = require("localtunnel");
 - `allow_invalid_cert` (boolean) Disable certificate checks for your local HTTPS server (ignore cert/key/ca options).
 - `clientToken` (string) **[NEW]** Client token for authentication and subdomain reservation (Protocol 0.0.9-epc). Format: alphanumeric, hyphens, and underscores only. Max 256 characters.
 - `hmacSecret` (string) **[NEW]** HMAC shared secret for request authentication (Protocol 0.0.10-epc). Minimum 32 characters required.
+- `local_reconnect` (boolean) Enable automatic retry when local service connection fails. Default: `true`.
+- `local_retry_max` (number) Maximum number of retry attempts for local service connection. Set to `0` for infinite retries. Default: `0`.
 
 Refer to [tls.createSecureContext](https://nodejs.org/api/tls.html#tls_tls_createsecurecontext_options) for details on the certificate options.
 
@@ -272,6 +278,54 @@ Added two optional authentication methods for enhanced security and persistent c
 - Minimum 32-character secret enforced
 
 Both features are **optional and backward compatible**. See the [Authentication](#authentication-optional) section for usage examples, or the [PROTOCOL_UPGRADE.md](PROTOCOL_UPGRADE.md) guide for complete details.
+
+### Local Service Reconnection (NEW - Protocol 0.0.11-epc)
+
+LocalTunnel now supports intelligent reconnection to your local service when it becomes unavailable, **without** disrupting the tunnel connection to the server.
+
+**How it works:**
+- When your local service closes a connection, LocalTunnel automatically retries
+- Remote tunnel connection to the server remains stable (no unnecessary reconnection overhead)
+- Configurable maximum retry attempts or infinite retries
+- Can be completely disabled for strict fail-fast behavior
+
+**Configuration:**
+
+```bash
+# Default: Infinite retries (backward compatible)
+lt --port 3000
+
+# Limit to 5 retry attempts
+lt --port 3000 --local-retry-max 5
+
+# Disable local reconnection (close tunnel when local service fails)
+lt --port 3000 --no-local-reconnect
+
+# Via environment variables
+LT_LOCAL_RETRY_MAX=10 lt --port 3000
+LT_LOCAL_RECONNECT=false lt --port 3000
+```
+
+**Behavior:**
+- **Reconnection enabled** (default): Keeps trying to reconnect with 1-second intervals
+- **Max retries set**: Stops after N failed attempts and closes the tunnel
+- **Reconnection disabled**: Immediately closes tunnel when local service closes connection
+- **All connections fail**: Client exits gracefully with exit code 0
+
+**Use cases:**
+- **Development**: Enable reconnection for server restarts (default behavior)
+- **Production**: Set max retries to fail fast if local service is down
+- **CI/CD**: Disable reconnection for predictable test behavior
+
+**API usage:**
+
+```js
+const tunnel = await localtunnel({
+  port: 3000,
+  local_reconnect: true,  // Enable retry (default)
+  local_retry_max: 5      // Max 5 attempts (0 = infinite, default)
+});
+```
 
 ### Error Handling
 

@@ -1,3 +1,51 @@
+# 2.2.0-epc (2025-11-11)
+
+## Protocol 0.0.11-epc Support - Local Service Reconnection
+
+This release upgrades the LocalTunnel client from protocol version 0.0.10-epc to 0.0.11-epc.
+
+### New Features
+
+#### Local Service Reconnection Control
+- **Intelligent retry** when local service connection closes, without disrupting tunnel to server
+- **CLI Options**: `--local-reconnect` (boolean), `--local-retry-max` (number)
+- **Environment Variables**: `LT_LOCAL_RECONNECT`, `LT_LOCAL_RETRY_MAX`
+- **API**: `local_reconnect` and `local_retry_max` options in `localtunnel()` function
+- **Default behavior**: Infinite retries enabled (backward compatible)
+- **Benefits**: Keeps tunnel stable during local service restarts, configurable fail-fast behavior
+
+### Changed
+- **Improved Connection Management**: Local connection failures no longer force remote reconnection
+  - Keeps tunnel to server stable during local service restarts
+  - Reduces unnecessary TCP handshakes and HMAC authentications
+  - Prevents connection storms to tunnel server
+- **Graceful shutdown**: Client exits with code 0 when all connections fail with reconnection disabled
+
+### Usage Examples
+
+```bash
+# Default: Infinite retries (backward compatible)
+lt --port 3000
+
+# Limit to 5 retry attempts
+lt --port 3000 --local-retry-max 5
+
+# Disable reconnection (fail fast)
+lt --port 3000 --no-local-reconnect
+
+# Via environment variables
+LT_LOCAL_RETRY_MAX=10 LT_PORT=3000 lt
+```
+
+### Technical Details
+- Local connection retry uses 1-second delay between attempts
+- Remote tunnel connection remains stable during local retries
+- Temporary listeners detect server disconnection during retry
+- Proper cleanup prevents memory leaks and listener accumulation
+- Compatible with all authentication methods (Client Token, HMAC)
+
+---
+
 # 2.1.0-epc (2025-10-28)
 
 ## Protocol 0.0.10-epc Support - Authentication Features

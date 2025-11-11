@@ -79,10 +79,20 @@ const { argv } = yargs(hideBin(process.argv))
     describe: 'Directory to dump HTTP requests/responses as YAML files',
     type: 'string',
   })
+  .option('local-reconnect', {
+    describe: 'Enable automatic reconnection when local server connection fails',
+    default: true,
+  })
+  .option('local-retry-max', {
+    describe: 'Maximum retry attempts for local server reconnection (0 = infinite)',
+    default: 0,
+    type: 'number',
+  })
   .require('port')
   .boolean('local-https')
   .boolean('allow-invalid-cert')
   .boolean('print-requests')
+  .boolean('local-reconnect')
   .help('help', 'Show this help and exit')
   .version(`localtunnel client (${version} with epc modifications)`);
 
@@ -108,6 +118,8 @@ if (typeof argv.port !== 'number') {
     clientToken: argv.clientToken,
     hmacSecret: argv.hmacSecret,
     dump_dir: argv.dumpDir,
+    local_reconnect: argv.localReconnect,
+    local_retry_max: argv.localRetryMax,
   }).catch(err => {
     console.error('\n❌ Failed to establish tunnel:');
     console.error(`   ${err.message}`);
