@@ -17,6 +17,7 @@ config();
 if (process.env.DEBUG) {
   debugLib.enable(process.env.DEBUG);
 }
+const debug = debugLib('localtunnel:config');
 
 import localtunnel from '../localtunnel.js';
 
@@ -61,12 +62,10 @@ const { argv } = yargs(hideBin(process.argv))
     describe: 'Disable certificate checks for your local HTTPS server (ignore cert/key/ca options)',
   })
   .option('client-token', {
-    describe: 'Client token for authentication and subdomain reservation (Protocol 0.0.9-epc)\n' +
-              'Environment variable: LT_CLIENT_TOKEN',
+    describe: 'Client token for authentication and subdomain reservation (Protocol 0.0.9-epc)',
   })
   .option('hmac-secret', {
-    describe: 'HMAC secret for request authentication, min 32 characters (Protocol 0.0.10-epc)\n' +
-              'Environment variable: LT_HMAC_SECRET',
+    describe: 'HMAC secret for request authentication, min 32 characters (Protocol 0.0.10-epc)',
   })
   .options('o', {
     alias: 'open',
@@ -88,7 +87,6 @@ const { argv } = yargs(hideBin(process.argv))
     default: 0,
     type: 'number',
   })
-  .require('port')
   .boolean('local-https')
   .boolean('allow-invalid-cert')
   .boolean('print-requests')
@@ -105,6 +103,7 @@ if (typeof argv.port !== 'number') {
 }
 
 (async () => {
+  debug(`client options: ${JSON.stringify(argv, null, '\t')}`);
   const tunnel = await localtunnel({
     port: argv.port,
     host: argv.host,
@@ -116,6 +115,7 @@ if (typeof argv.port !== 'number') {
     local_ca: argv.localCa,
     allow_invalid_cert: argv.allowInvalidCert,
     clientToken: argv.clientToken,
+    printRequests: argv.printRequests,
     hmacSecret: argv.hmacSecret,
     dump_dir: argv.dumpDir,
     local_reconnect: argv.localReconnect,
