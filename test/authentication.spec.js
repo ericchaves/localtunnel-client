@@ -12,8 +12,8 @@
 import crypto from 'crypto';
 import assert from 'assert';
 import nock from 'nock';
-import localtunnel from './localtunnel.js';
-import { MockLocalTunnelServer, PROTOCOL_SPECS } from './test/helpers/mocks.js';
+import localtunnel from '../localtunnel.js';
+import { MockLocalTunnelServer, PROTOCOL_SPECS } from './helpers/mocks.js';
 
 describe('LocalTunnel Client - Authentication', function() {
   let mockServer;

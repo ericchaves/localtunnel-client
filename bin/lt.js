@@ -153,6 +153,14 @@ if (typeof argv.port !== 'number') {
     process.exit(1);
   });
 
+  // Handle graceful exit when all tunnels are dead (Protocol 0.0.11-epc)
+  tunnel.on('exit', info => {
+    console.error(`\n⚠ Tunnel closed: ${info.reason}`);
+    console.error('   All connections to the local service have failed.');
+    console.error('   Please check if your local service is running.');
+    process.exit(info.code);
+  });
+
   console.log('\n✓ Tunnel established successfully!');
   console.log('  Public URL:  %s', tunnel.url);
   console.log('  Tunnel ID:   %s', tunnel.clientId);

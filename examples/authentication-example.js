@@ -197,5 +197,4 @@ server.listen(PORT, async () => {
   console.log('='.repeat(60));
 
   server.close();
-  process.exit(0);
 });
