@@ -199,29 +199,27 @@ describe('Local Service Reconnection', function() {
       await new Promise((resolve) => testServer.close(resolve));
     });
 
-    it.skip('should stop retrying after local_retry_max reached (NEEDS REDESIGN)', async function() {
-      this.timeout(6000);
+    it('should handle remote close during local retry gracefully', async function() {
+      this.timeout(4000);
 
       const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 1 });
       const tcpMock = await mockServer.createMockTcpServer(tcpPort);
 
-      let localConnectionAttempts = 0;
       let deadEventCount = 0;
       let deadEventInfo = null;
 
-      const maxRetries = 3;
-
-      // Create a local server that counts connection attempts and closes immediately
-      const testServer = http.createServer();
-
-      // Count actual connection attempts (not just HTTP requests)
-      testServer.on('connection', (socket) => {
-        localConnectionAttempts++;
-        // Destroy the socket after a small delay to simulate service failure
-        // Small delay allows TunnelCluster to set up pipes before socket closes
-        setTimeout(() => {
-          socket.destroy();
-        }, 10);
+      // Create a local server that fails a few times (but not enough to reach 10)
+      let failureCount = 0;
+      const testServer = http.createServer((req, res) => {
+        failureCount++;
+        if (failureCount <= 3) {
+          // Fail first 3 attempts
+          req.socket.destroy();
+        } else {
+          // Would succeed after, but we'll close remote before
+          res.writeHead(200);
+          res.end('ok');
+        }
       });
 
       await new Promise((resolve) => testServer.listen(0, resolve));
@@ -229,16 +227,7 @@ describe('Local Service Reconnection', function() {
 
       const tunnel = await localtunnel({
         port: localPort,
-        local_reconnect: true,
-        local_retry_max: maxRetries
-      });
-
-      // Handle errors to prevent uncaught exceptions from killing the test
-      tunnel.on('error', () => {
-        // Expected errors from remote/local connection issues
-      });
-      tunnel.tunnelCluster.on('error', () => {
-        // Expected errors from TunnelCluster operations
+        local_reconnect: true
       });
 
       // Listen for 'dead' event
@@ -254,235 +243,24 @@ describe('Local Service Reconnection', function() {
       const remoteSocket = tcpMock.sockets[0];
       remoteSocket.write('GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n');
 
-      // Wait for all retries to complete (maxRetries attempts)
-      // Each retry has 1s delay (line 358 TunnelCluster.js)
-      await new Promise(resolve => setTimeout(resolve, (maxRetries + 1) * 1000 + 500));
+      // Wait for a few local failures (but less than 10)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Should have attempted maxRetries + 1 (initial) times
-      assert(localConnectionAttempts >= maxRetries + 1,
-        `Should have ${maxRetries + 1} connection attempts (actual: ${localConnectionAttempts})`);
-
-      // Should emit 'dead' with retriable=false after max retries (line 316)
-      assert.strictEqual(deadEventCount, 1, 'Should emit dead event once after max retries');
-      assert.strictEqual(deadEventInfo?.retriable, false,
-        'Should emit dead with retriable=false after max retries exhausted');
-
-      tunnel.close();
-      await tcpMock.close();
-      await new Promise((resolve) => testServer.close(resolve));
-    });
-
-    it.skip('should emit dead with retriable=false when max retries exhausted (NEEDS REDESIGN)', async function() {
-      this.timeout(4000);
-
-      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 1 });
-      const tcpMock = await mockServer.createMockTcpServer(tcpPort);
-
-      let deadEvents = [];
-
-      // Create a local server that always fails
-      const testServer = http.createServer((req, res) => {
-        req.socket.destroy();
-      });
-
-      await new Promise((resolve) => testServer.listen(0, resolve));
-      const localPort = testServer.address().port;
-
-      const tunnel = await localtunnel({
-        port: localPort,
-        local_reconnect: true,
-        local_retry_max: 2
-      });
-
-      // Collect all dead events
-      tunnel.tunnelCluster.on('dead', (eventInfo) => {
-        deadEvents.push(eventInfo);
-      });
-
-      // Wait for tunnel to establish
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Trigger local connection
-      const remoteSocket = tcpMock.sockets[0];
-      remoteSocket.write('GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n');
-
-      // Wait for retries to exhaust
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Should have exactly one dead event with retriable=false
-      assert.strictEqual(deadEvents.length, 1, 'Should emit exactly one dead event');
-      assert.strictEqual(deadEvents[0]?.retriable, false,
-        'Dead event should have retriable=false');
-
-      tunnel.close();
-      await tcpMock.close();
-      await new Promise((resolve) => testServer.close(resolve));
-    });
-
-    it.skip('should handle remote close during local retry gracefully (NEEDS REDESIGN)', async function() {
-      this.timeout(4000);
-
-      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 1 });
-      const tcpMock = await mockServer.createMockTcpServer(tcpPort);
-
-      let deadEventCount = 0;
-      let deadEventInfo = null;
-
-      // Create a local server that always fails
-      const testServer = http.createServer((req, res) => {
-        req.socket.destroy();
-      });
-
-      await new Promise((resolve) => testServer.listen(0, resolve));
-      const localPort = testServer.address().port;
-
-      const tunnel = await localtunnel({
-        port: localPort,
-        local_reconnect: true,
-        local_retry_max: 0 // infinite
-      });
-
-      // Listen for 'dead' event
-      tunnel.tunnelCluster.on('dead', (eventInfo) => {
-        deadEventCount++;
-        deadEventInfo = eventInfo;
-      });
-
-      // Wait for tunnel to establish
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Trigger local connection and close
-      const remoteSocket = tcpMock.sockets[0];
-      remoteSocket.write('GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n');
-
-      // Wait a bit for local to fail and retry to be scheduled
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Close remote during retry (simulates line 327-343 in TunnelCluster.js)
+      // Close remote during retry - should emit dead with retriable=true since failures < 10
       remoteSocket.destroy();
 
       // Wait for dead event
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Should emit 'dead' with retriable=true (line 341)
+      // Should emit 'dead' with retriable=true because consecutive failures < 10
       assert.strictEqual(deadEventCount, 1, 'Should emit dead event once');
-      assert.notStrictEqual(deadEventInfo?.retriable, false,
-        'Should emit dead with retriable=true (or undefined) when remote closes during retry');
+      assert.strictEqual(deadEventInfo?.retriable, true,
+        'Should emit dead with retriable=true when remote closes with failures < 10');
 
       tunnel.close();
       await tcpMock.close();
       await new Promise((resolve) => testServer.close(resolve));
     });
 
-    it.skip('should reset retry counter on successful reconnection (NEEDS REDESIGN)', async function() {
-      this.timeout(5000);
-
-      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 1 });
-      const tcpMock = await mockServer.createMockTcpServer(tcpPort);
-
-      let localConnectionAttempts = 0;
-
-      // Create a local server that fails twice then succeeds
-      const testServer = http.createServer((req, res) => {
-        localConnectionAttempts++;
-
-        if (localConnectionAttempts <= 2) {
-          // Fail first 2 attempts
-          req.socket.destroy();
-        } else {
-          // Succeed on 3rd attempt
-          res.writeHead(200);
-          res.end('success');
-        }
-      });
-
-      await new Promise((resolve) => testServer.listen(0, resolve));
-      const localPort = testServer.address().port;
-
-      const tunnel = await localtunnel({
-        port: localPort,
-        local_reconnect: true,
-        local_retry_max: 0 // infinite
-      });
-
-      // Wait for tunnel to establish
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Trigger first request
-      const remoteSocket = tcpMock.sockets[0];
-      remoteSocket.write('GET /test1 HTTP/1.1\r\nHost: test.com\r\n\r\n');
-
-      // Wait for retries and success
-      await new Promise(resolve => setTimeout(resolve, 2500));
-
-      // At this point, retry counter should be reset (line 186 in TunnelCluster.js)
-      // Verify by triggering another request that should work immediately
-      const initialAttempts = localConnectionAttempts;
-
-      remoteSocket.write('GET /test2 HTTP/1.1\r\nHost: test.com\r\n\r\n');
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Should have connected successfully without retries for second request
-      assert(localConnectionAttempts >= 3,
-        'Should have successfully reconnected and handled new request');
-
-      tunnel.close();
-      await tcpMock.close();
-      await new Promise((resolve) => testServer.close(resolve));
-    });
-
-    it.skip('should clean up listeners and pipes before retry (NEEDS REDESIGN)', async function() {
-      this.timeout(4000);
-
-      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 1 });
-      const tcpMock = await mockServer.createMockTcpServer(tcpPort);
-
-      let localConnectionAttempts = 0;
-
-      // Create a local server that fails then succeeds
-      const testServer = http.createServer((req, res) => {
-        localConnectionAttempts++;
-
-        if (localConnectionAttempts === 1) {
-          // Fail first attempt
-          req.socket.destroy();
-        } else {
-          // Succeed on retry
-          res.writeHead(200);
-          res.end('success after cleanup');
-        }
-      });
-
-      await new Promise((resolve) => testServer.listen(0, resolve));
-      const localPort = testServer.address().port;
-
-      const tunnel = await localtunnel({
-        port: localPort,
-        local_reconnect: true,
-        local_retry_max: 3
-      });
-
-      // Wait for tunnel to establish
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Trigger request
-      const remoteSocket = tcpMock.sockets[0];
-      remoteSocket.write('GET /test HTTP/1.1\r\nHost: test.com\r\n\r\n');
-
-      // Wait for retry
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Should have retried successfully (lines 268-275 in TunnelCluster.js cleanup pipes)
-      assert(localConnectionAttempts >= 2,
-        'Should successfully retry after cleanup');
-
-      // No memory leaks or listener accumulation errors should occur
-      assert(true, 'Cleanup completed without errors');
-
-      tunnel.close();
-      await tcpMock.close();
-      await new Promise((resolve) => testServer.close(resolve));
-    });
   });
 });
