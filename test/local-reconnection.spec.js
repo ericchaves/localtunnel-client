@@ -519,5 +519,40 @@ describe('Local Service Reconnection', function() {
       tunnel.close();
       await tcpMock.close();
     });
+
+    it('should assign unique tunnel IDs for log identification', async function() {
+      this.timeout(3000);
+
+      const { tunnelId, tcpPort } = mockServer.mockTunnelCreation(null, { maxConnCount: 3 });
+      const tcpMock = await mockServer.createMockTcpServer(tcpPort);
+
+      const tunnel = await localtunnel({
+        port: fakePort,
+        local_retry_max: 10
+      });
+
+      // Wait for tunnel to establish
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const cluster = tunnel.tunnelCluster;
+
+      // Check that tunnel ID counter exists and increments
+      assert(cluster.nextTunnelId > 1, 'nextTunnelId should have incremented');
+
+      // Check that all socket pairs have unique tunnel IDs
+      const tunnelIds = cluster.sockets.map(s => s.tunnelId).filter(id => id !== undefined);
+      assert(tunnelIds.length > 0, 'Should have assigned tunnel IDs to socket pairs');
+
+      // Verify IDs are unique
+      const uniqueIds = new Set(tunnelIds);
+      assert.strictEqual(uniqueIds.size, tunnelIds.length, 'All tunnel IDs should be unique');
+
+      // Verify IDs are sequential starting from 1
+      const sortedIds = [...tunnelIds].sort((a, b) => a - b);
+      assert.strictEqual(sortedIds[0], 1, 'First tunnel ID should be 1');
+
+      tunnel.close();
+      await tcpMock.close();
+    });
   });
 });
